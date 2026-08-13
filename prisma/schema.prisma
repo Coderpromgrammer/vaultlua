@@ -1,0 +1,451 @@
+// VaultLua — Production Prisma schema
+// Mirrors the Supabase PostgreSQL schema required by the platform.
+// RLS-equivalent access control is enforced at the server layer (src/lib/authz.ts).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Profiles & Roles
+// ────────────────────────────────────────────────────────────────────────────
+
+model Profile {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  username     String   @unique
+  displayName  String?
+  avatarUrl    String?
+  passwordHash String?
+  role         String   @default("user") // user | creator | moderator | admin | owner
+  lastSeenAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  ownedProjects    Project[]
+  memberships      ProjectMember[]
+  scripts          Script[]
+  licenses         License[]
+  apiKeys          ApiKey[]
+  auditLogs        AuditLog[]
+  notifications    Notification[]
+  discordIntegrations DiscordIntegration[]
+  sessions         Session[]      @relation("ProfileSessions")
+  initiatedActions AuditLog[]     @relation("ActorActions")
+
+  @@index([role])
+  @@index([createdAt])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Projects
+// ────────────────────────────────────────────────────────────────────────────
+
+model Project {
+  id              String   @id @default(cuid())
+  identifier      String   @unique // short slug, e.g. "vlx-7f3a"
+  name            String
+  description     String?
+  iconUrl         String?
+  status          String   @default("active") // active | paused | archived
+  visibility      String   @default("private") // public | private
+  ownerId         String
+  owner           Profile  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  members         ProjectMember[]
+  scripts         Script[]
+  licenses        License[]
+  endUsers        EndUser[]
+  sessions        Session[]
+  rewardProviders RewardProvider[]
+  rewardCheckpoints RewardCheckpoint[]
+  rewardSessions  RewardSession[]
+  discordIntegrations DiscordIntegration[]
+  auditLogs       AuditLog[]
+
+  @@index([ownerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   @default("member") // owner | admin | editor | viewer
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Scripts & Versions
+// ────────────────────────────────────────────────────────────────────────────
+
+model Script {
+  id              String   @id @default(cuid())
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name            String
+  description     String?
+  status          String   @default("draft") // draft | published | disabled
+  currentVersion  String   @default("0.0.0")
+  lastPublishedAt DateTime?
+  authorId        String
+  author          Profile  @relation(fields: [authorId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  versions        ScriptVersion[]
+  sessions        Session[]
+
+  @@index([projectId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ScriptVersion {
+  id          String   @id @default(cuid())
+  scriptId    String
+  script      Script   @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+  version     String // semver e.g. 1.2.0
+  changelog   String?
+  payloadRef  String   // storage key / inline reference id; actual content stored server-side
+  payloadSize Int      @default(0)
+  publishedById String
+  publishedAt DateTime @default(now())
+
+  @@unique([scriptId, version])
+  @@index([scriptId])
+  @@index([publishedAt])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Licenses / Keys
+// ────────────────────────────────────────────────────────────────────────────
+
+model License {
+  id            String    @id @default(cuid())
+  key           String    @unique
+  projectId     String
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  ownerId       String?
+  owner         Profile?  @relation(fields: [ownerId], references: [id])
+  endUserId     String?
+  endUser       EndUser?  @relation(fields: [endUserId], references: [id])
+  durationDays  Int?      // null = lifetime
+  expiresAt     DateTime?
+  status        String    @default("unclaimed") // unclaimed | active | expired | banned | revoked | suspended
+  hwid          String?
+  hwidResetAt   DateTime?
+  hwidResets    Int       @default(0)
+  maxSessions   Int       @default(1)
+  claimedAt     DateTime?
+  lastUsedAt    DateTime?
+  note          String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions      Session[]
+
+  @@index([projectId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([expiresAt])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// End Users (script consumers)
+// ────────────────────────────────────────────────────────────────────────────
+
+model EndUser {
+  id            String    @id @default(cuid())
+  projectId     String
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  identifier    String    // a stable hash of HWID or username
+  displayName   String?
+  hwid          String?
+  hwidResetAt   DateTime?
+  status        String    @default("active") // active | banned | suspended
+  firstSeenAt   DateTime  @default(now())
+  lastSeenAt    DateTime  @default(now())
+  requestCount  Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  licenses      License[]
+  sessions      Session[]
+  rewardCompletions RewardCompletion[]
+
+  @@unique([projectId, identifier])
+  @@index([projectId])
+  @@index([status])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Sessions & Heartbeats
+// ────────────────────────────────────────────────────────────────────────────
+
+model Session {
+  id             String    @id @default(cuid())
+  projectId      String
+  project        Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  scriptId       String
+  script         Script    @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+  licenseId      String
+  license        License   @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  endUserId      String?
+  endUser        EndUser?  @relation(fields: [endUserId], references: [id])
+  operatorId     String?
+  operator       Profile?  @relation("ProfileSessions", fields: [operatorId], references: [id])
+  status         String    @default("active") // active | idle | disconnected | terminated
+  sessionToken   String    @unique
+  deviceInfo     String?
+  ipAddress      String?
+  startedAt      DateTime  @default(now())
+  lastHeartbeat  DateTime  @default(now())
+  terminatedAt   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  heartbeats     Heartbeat[]
+
+  @@index([projectId])
+  @@index([status])
+  @@index([lastHeartbeat])
+  @@index([licenseId])
+}
+
+model Heartbeat {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  receivedAt DateTime @default(now())
+  metadata  String?
+
+  @@index([sessionId])
+  @@index([receivedAt])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Rewards / Ads
+// ────────────────────────────────────────────────────────────────────────────
+
+model RewardProvider {
+  id           String   @id @default(cuid())
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name         String   // e.g. "LoiLo", "AdGem", "Mock Provider"
+  type         String   @default("mock") // mock | loilo | adgem | custom
+  enabled      Boolean  @default(true)
+  configEnc    String?  // encrypted JSON of provider secrets (server-side only)
+  rewardAmount Int      @default(1)
+  cooldownSec  Int      @default(300)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  checkpoints  RewardCheckpoint[]
+  sessions     RewardSession[]
+  completions  RewardCompletion[]
+
+  @@index([projectId])
+}
+
+model RewardCheckpoint {
+  id            String   @id @default(cuid())
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  providerId    String
+  provider      RewardProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  name          String
+  order         Int
+  enabled       Boolean  @default(true)
+  rewardValue   Int      @default(1)
+  cooldownSec   Int      @default(60)
+  validationUrl String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  completions   RewardCompletion[]
+
+  @@index([projectId])
+  @@index([providerId])
+  @@index([order])
+}
+
+model RewardSession {
+  id                  String    @id @default(cuid())
+  projectId           String
+  project             Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  providerId          String?
+  provider            RewardProvider? @relation(fields: [providerId], references: [id])
+  anonymousSessionId  String    @unique // signed token, never trusted from frontend
+  signedPayload       String    // HMAC-signed state for replay protection
+  currentCheckpoint   Int       @default(0)
+  totalCheckpoints    Int       @default(3)
+  status              String    @default("active") // active | completed | expired | cooldown | blocked
+  signature           String
+  ipAddress           String?
+  userAgent           String?
+  createdAt           DateTime  @default(now())
+  expiresAt           DateTime
+  completedAt         DateTime?
+  cooldownEndsAt      DateTime?
+
+  completions         RewardCompletion[]
+
+  @@index([projectId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model RewardCompletion {
+  id              String   @id @default(cuid())
+  rewardSessionId String
+  rewardSession   RewardSession @relation(fields: [rewardSessionId], references: [id], onDelete: Cascade)
+  checkpointId    String
+  checkpoint      RewardCheckpoint @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
+  providerId      String
+  provider        RewardProvider @relation(fields: [providerId], references: [id])
+  endUserId       String?
+  endUser         EndUser? @relation(fields: [endUserId], references: [id])
+  rewardValue     Int      @default(1)
+  verified        Boolean  @default(false)
+  verificationToken String?
+  completedAt     DateTime @default(now())
+
+  @@unique([rewardSessionId, checkpointId])
+  @@index([rewardSessionId])
+  @@index([providerId])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// API Keys & Usage
+// ────────────────────────────────────────────────────────────────────────────
+
+model ApiKey {
+  id           String    @id @default(cuid())
+  ownerId      String
+  owner        Profile   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name         String
+  keyPrefix    String    // visible part e.g. "vlx_live_abc…"
+  keyHash      String    @unique // bcrypt-style hash
+  permissions  String    @default("[]") // JSON array of permission strings
+  lastUsedAt   DateTime?
+  lastUsedIp   String?
+  revokedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  usageEvents  ApiUsage[]
+  auditLogs    AuditLog[]
+
+  @@index([ownerId])
+  @@index([keyHash])
+}
+
+model ApiUsage {
+  id          String   @id @default(cuid())
+  apiKeyId    String
+  apiKey      ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  endpoint    String
+  method      String
+  statusCode  Int
+  durationMs  Int
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([apiKeyId])
+  @@index([createdAt])
+  @@index([endpoint])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Discord Integration
+// ────────────────────────────────────────────────────────────────────────────
+
+model DiscordIntegration {
+  id              String   @id @default(cuid())
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  ownerId         String
+  owner           Profile  @relation(fields: [ownerId], references: [id])
+  guildId         String?
+  guildName       String?
+  botConnected    Boolean  @default(false)
+  roleMappings    String   @default("[]") // JSON: [{ licenseStatus, roleId, roleName }]
+  notifyOnRedeem  Boolean  @default(true)
+  notifyOnRevoke  Boolean  @default(true)
+  notifyOnBan     Boolean  @default(false)
+  webhookUrl      String?
+  status          String   @default("pending") // pending | connected | error
+  errorMessage    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([projectId])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Audit Logs, Notifications, System Settings
+// ────────────────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      Profile? @relation(fields: [actorId], references: [id])
+  initiatedById String?
+  initiatedBy Profile? @relation("ActorActions", fields: [initiatedById], references: [id])
+  projectId  String?
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  scriptId   String?
+  apiKeyId   String?
+  apiKey     ApiKey?  @relation(fields: [apiKeyId], references: [id])
+  action     String   // e.g. key.create, key.revoke, session.terminate
+  target     String?
+  metadata   String   @default("{}") // JSON
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([projectId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // info | success | warning | error
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  metadata  String   @default("{}")
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+  @@index([createdAt])
+}
+
+model SystemSetting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+  scope String @default("global") // global | pricing | feature_flag | maintenance
+  updatedAt DateTime @updatedAt
+}
