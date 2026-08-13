@@ -8,6 +8,7 @@ import {
   Lock, Zap, Globe, ChevronRight, Star,
 } from "lucide-react";
 import { VaultLogo } from "@/components/shared/logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -136,6 +137,7 @@ export function LandingView() {
             </Button>
           </nav>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Button variant="ghost" size="sm" onClick={() => navigate("/auth/signin")}>
               Sign in
             </Button>

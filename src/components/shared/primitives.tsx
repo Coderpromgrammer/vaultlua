@@ -21,11 +21,11 @@ export function StatCard({
   loading?: boolean;
 }) {
   const accentMap = {
-    violet: "from-violet-500/20 to-fuchsia-500/10 text-violet-300",
-    cyan: "from-cyan-500/20 to-blue-500/10 text-cyan-300",
-    emerald: "from-emerald-500/20 to-teal-500/10 text-emerald-300",
-    amber: "from-amber-500/20 to-orange-500/10 text-amber-300",
-    rose: "from-rose-500/20 to-pink-500/10 text-rose-300",
+    violet: "from-violet-500/25 to-fuchsia-500/10 text-violet-600 dark:text-violet-300",
+    cyan: "from-cyan-500/25 to-blue-500/10 text-cyan-600 dark:text-cyan-300",
+    emerald: "from-emerald-500/25 to-teal-500/10 text-emerald-600 dark:text-emerald-300",
+    amber: "from-amber-500/25 to-orange-500/10 text-amber-600 dark:text-amber-300",
+    rose: "from-rose-500/25 to-pink-500/10 text-rose-600 dark:text-rose-300",
   };
 
   return (
@@ -52,7 +52,7 @@ export function StatCard({
               <div
                 className={cn(
                   "inline-flex items-center gap-1 text-xs font-medium",
-                  delta >= 0 ? "text-emerald-400" : "text-rose-400"
+                  delta >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
                 )}
               >
                 {delta >= 0 ? (
@@ -140,30 +140,30 @@ export function StatusDot({
   className?: string;
 }) {
   const map: Record<string, string> = {
-    active: "bg-emerald-400 text-emerald-400",
-    idle: "bg-amber-400 text-amber-400",
-    disconnected: "bg-zinc-500 text-zinc-500",
-    terminated: "bg-rose-400 text-rose-400",
-    completed: "bg-emerald-400 text-emerald-400",
-    expired: "bg-zinc-500 text-zinc-500",
-    banned: "bg-rose-400 text-rose-400",
-    revoked: "bg-rose-400 text-rose-400",
-    suspended: "bg-amber-400 text-amber-400",
-    unclaimed: "bg-cyan-400 text-cyan-400",
-    published: "bg-emerald-400 text-emerald-400",
-    draft: "bg-zinc-500 text-zinc-500",
-    disabled: "bg-rose-400 text-rose-400",
-    connected: "bg-emerald-400 text-emerald-400",
-    pending: "bg-amber-400 text-amber-400",
-    error: "bg-rose-400 text-rose-400",
-    cooldown: "bg-amber-400 text-amber-400",
-    blocked: "bg-rose-400 text-rose-400",
+    active: "bg-emerald-500 dark:bg-emerald-400 text-emerald-500 dark:text-emerald-400",
+    idle: "bg-amber-500 dark:bg-amber-400 text-amber-500 dark:text-amber-400",
+    disconnected: "bg-zinc-500 dark:bg-zinc-500 text-zinc-500 dark:text-zinc-500",
+    terminated: "bg-rose-500 dark:bg-rose-400 text-rose-500 dark:text-rose-400",
+    completed: "bg-emerald-500 dark:bg-emerald-400 text-emerald-500 dark:text-emerald-400",
+    expired: "bg-zinc-500 dark:bg-zinc-500 text-zinc-500 dark:text-zinc-500",
+    banned: "bg-rose-500 dark:bg-rose-400 text-rose-500 dark:text-rose-400",
+    revoked: "bg-rose-500 dark:bg-rose-400 text-rose-500 dark:text-rose-400",
+    suspended: "bg-amber-500 dark:bg-amber-400 text-amber-500 dark:text-amber-400",
+    unclaimed: "bg-cyan-500 dark:bg-cyan-400 text-cyan-500 dark:text-cyan-400",
+    published: "bg-emerald-500 dark:bg-emerald-400 text-emerald-500 dark:text-emerald-400",
+    draft: "bg-zinc-500 dark:bg-zinc-500 text-zinc-500 dark:text-zinc-500",
+    disabled: "bg-rose-500 dark:bg-rose-400 text-rose-500 dark:text-rose-400",
+    connected: "bg-emerald-500 dark:bg-emerald-400 text-emerald-500 dark:text-emerald-400",
+    pending: "bg-amber-500 dark:bg-amber-400 text-amber-500 dark:text-amber-400",
+    error: "bg-rose-500 dark:bg-rose-400 text-rose-500 dark:text-rose-400",
+    cooldown: "bg-amber-500 dark:bg-amber-400 text-amber-500 dark:text-amber-400",
+    blocked: "bg-rose-500 dark:bg-rose-400 text-rose-500 dark:text-rose-400",
   };
   return (
     <span
       className={cn(
         "inline-block w-1.5 h-1.5 rounded-full status-pulse",
-        map[status] ?? "bg-zinc-500 text-zinc-500",
+        map[status] ?? "bg-zinc-500 dark:bg-zinc-500 text-zinc-500 dark:text-zinc-500",
         className
       )}
     />
@@ -171,31 +171,33 @@ export function StatusDot({
 }
 
 export function StatusBadge({ status }: { status: string }) {
+  // Theme-aware color classes. Each entry uses light-mode `text-*-700` and
+  // dark-mode `dark:text-*-300` so the badge is readable on both backgrounds.
   const map: Record<string, string> = {
-    active: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-    idle: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-    disconnected: "bg-zinc-500/15 text-zinc-300 border-zinc-500/30",
-    terminated: "bg-rose-500/15 text-rose-300 border-rose-500/30",
-    completed: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-    expired: "bg-zinc-500/15 text-zinc-300 border-zinc-500/30",
-    banned: "bg-rose-500/15 text-rose-300 border-rose-500/30",
-    revoked: "bg-rose-500/15 text-rose-300 border-rose-500/30",
-    suspended: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-    unclaimed: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30",
-    published: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-    draft: "bg-zinc-500/15 text-zinc-300 border-zinc-500/30",
-    disabled: "bg-rose-500/15 text-rose-300 border-rose-500/30",
-    connected: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-    pending: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-    error: "bg-rose-500/15 text-rose-300 border-rose-500/30",
-    cooldown: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-    blocked: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+    active: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
+    idle: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
+    disconnected: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-300 border-zinc-500/30",
+    terminated: "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30",
+    completed: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
+    expired: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-300 border-zinc-500/30",
+    banned: "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30",
+    revoked: "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30",
+    suspended: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
+    unclaimed: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30",
+    published: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
+    draft: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-300 border-zinc-500/30",
+    disabled: "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30",
+    connected: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
+    pending: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
+    error: "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30",
+    cooldown: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
+    blocked: "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30",
   };
   return (
     <span
       className={cn(
         "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border",
-        map[status] ?? "bg-zinc-500/15 text-zinc-300 border-zinc-500/30"
+        map[status] ?? "bg-zinc-500/15 text-zinc-600 dark:text-zinc-300 border-zinc-500/30"
       )}
     >
       <StatusDot status={status} className="!w-1 !h-1" />

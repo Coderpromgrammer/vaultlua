@@ -49,67 +49,122 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* VaultLua — Dark Futuristic Developer SaaS Theme */
+/* ────────────────────────────────────────────────────────────────────────────
+   VaultLua — Theme System
+   Light mode: soft lavender-tinted off-white with smooth pastel gradients.
+   Dark mode: deep space navy with violet/cyan accents.
+   Both use smooth, modern gradient colors — no harsh pure primaries.
+   ──────────────────────────────────────────────────────────────────────────── */
+
 :root {
   --radius: 0.75rem;
 
-  /* Light mode (rarely used but kept for completeness) */
-  --background: oklch(0.99 0.002 240);
-  --foreground: oklch(0.18 0.02 260);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.02 260);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.02 260);
-  --primary: oklch(0.62 0.19 270);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.96 0.01 260);
-  --secondary-foreground: oklch(0.25 0.02 260);
-  --muted: oklch(0.96 0.01 260);
-  --muted-foreground: oklch(0.5 0.02 260);
-  --accent: oklch(0.94 0.02 260);
-  --accent-foreground: oklch(0.25 0.02 260);
-  --destructive: oklch(0.6 0.22 18);
-  --destructive-foreground: oklch(0.99 0 0);
-  --success: oklch(0.6 0.16 150);
-  --success-foreground: oklch(0.99 0 0);
-  --warning: oklch(0.75 0.17 70);
-  --warning-foreground: oklch(0.2 0.02 70);
-  --info: oklch(0.65 0.16 230);
-  --info-foreground: oklch(0.99 0 0);
-  --border: oklch(0.9 0.01 260);
-  --input: oklch(0.92 0.01 260);
-  --ring: oklch(0.62 0.19 270);
-  --chart-1: oklch(0.62 0.19 270);
-  --chart-2: oklch(0.65 0.16 200);
-  --chart-3: oklch(0.7 0.18 160);
-  --chart-4: oklch(0.75 0.17 70);
-  --chart-5: oklch(0.65 0.22 330);
-  --sidebar: oklch(0.99 0.002 240);
-  --sidebar-foreground: oklch(0.18 0.02 260);
-  --sidebar-primary: oklch(0.62 0.19 270);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.96 0.01 260);
-  --sidebar-accent-foreground: oklch(0.25 0.02 260);
-  --sidebar-border: oklch(0.9 0.01 260);
-  --sidebar-ring: oklch(0.62 0.19 270);
+  /* ── Light mode — soft, modern, gradient-friendly ─────────────────────── */
+  /* Background: warm off-white with the faintest lavender tint (not pure white) */
+  --background: oklch(0.985 0.005 285);
+  --foreground: oklch(0.22 0.025 270);
+
+  /* Cards: pure white but with a subtle cool tint when stacked */
+  --card: oklch(1 0.002 285);
+  --card-foreground: oklch(0.22 0.025 270);
+  --popover: oklch(0.998 0.004 285);
+  --popover-foreground: oklch(0.22 0.025 270);
+
+  /* Primary: smooth indigo-violet (not pure blue, not pure purple) */
+  --primary: oklch(0.55 0.2 285);
+  --primary-foreground: oklch(0.99 0.005 285);
+
+  /* Secondary: pale lavender wash */
+  --secondary: oklch(0.96 0.012 285);
+  --secondary-foreground: oklch(0.3 0.04 280);
+
+  /* Muted: very subtle gray-violet */
+  --muted: oklch(0.965 0.008 285);
+  --muted-foreground: oklch(0.5 0.025 275);
+
+  /* Accent: soft violet tint, not too saturated */
+  --accent: oklch(0.94 0.025 285);
+  --accent-foreground: oklch(0.32 0.08 285);
+
+  /* Status colors — smooth pastel-leaning, not harsh */
+  --destructive: oklch(0.62 0.21 12);
+  --destructive-foreground: oklch(0.99 0.005 12);
+  --success: oklch(0.62 0.16 155);
+  --success-foreground: oklch(0.99 0.005 155);
+  --warning: oklch(0.72 0.16 65);
+  --warning-foreground: oklch(0.22 0.04 65);
+  --info: oklch(0.6 0.15 230);
+  --info-foreground: oklch(0.99 0.005 230);
+
+  /* Borders & inputs — barely-there violet-tinted lines */
+  --border: oklch(0.91 0.008 285);
+  --input: oklch(0.93 0.008 285);
+  --ring: oklch(0.55 0.2 285);
+
+  /* Chart palette — smooth gradient-friendly, modern pastel-vivid balance */
+  --chart-1: oklch(0.58 0.2 285);   /* violet */
+  --chart-2: oklch(0.62 0.16 220);  /* sky blue */
+  --chart-3: oklch(0.65 0.16 160);  /* teal-green */
+  --chart-4: oklch(0.72 0.17 65);   /* warm amber */
+  --chart-5: oklch(0.62 0.21 350);  /* rose-pink */
+
+  /* Sidebar: very subtle lavender-tinted off-white */
+  --sidebar: oklch(0.985 0.006 285);
+  --sidebar-foreground: oklch(0.22 0.025 270);
+  --sidebar-primary: oklch(0.55 0.2 285);
+  --sidebar-primary-foreground: oklch(0.99 0.005 285);
+  --sidebar-accent: oklch(0.95 0.015 285);
+  --sidebar-accent-foreground: oklch(0.3 0.04 280);
+  --sidebar-border: oklch(0.91 0.008 285);
+  --sidebar-ring: oklch(0.55 0.2 285);
+
+  /* Light-mode ambient gradient tints (used by body background) */
+  --bg-tint-1: oklch(0.7 0.18 285 / 0.06);
+  --bg-tint-2: oklch(0.7 0.16 220 / 0.05);
+  --bg-tint-3: oklch(0.75 0.17 350 / 0.04);
+
+  /* Grid line color (for grid-bg) */
+  --grid-line: oklch(0.3 0.05 285 / 0.06);
+
+  /* Scrollbar */
+  --scrollbar-thumb: oklch(0.3 0.05 285 / 0.18);
+  --scrollbar-thumb-hover: oklch(0.3 0.05 285 / 0.28);
+
+  /* Shimmer base */
+  --shimmer-base: oklch(0.55 0.2 285 / 0.06);
+  --shimmer-peak: oklch(0.55 0.2 285 / 0.12);
+
+  /* Glass insets */
+  --glass-inset-1: oklch(1 0 0 / 0.7);
+  --glass-inset-2: oklch(1 0 0 / 0.5);
+  --glass-shadow: oklch(0.2 0.04 285 / 0.08);
+  --glass-shadow-strong: oklch(0.2 0.04 285 / 0.12);
+
+  /* Glow */
+  --glow-violet: oklch(0.55 0.2 285 / 0.25);
+  --glow-cyan: oklch(0.6 0.16 220 / 0.22);
 }
 
 .dark {
-  /* VaultLua signature dark theme — deep space navy with violet/cyan accents */
+  /* ── Dark mode — deep space navy with violet/cyan accents ─────────────── */
   --background: oklch(0.13 0.015 265);
   --foreground: oklch(0.96 0.005 260);
+
   --card: oklch(0.16 0.018 265);
   --card-foreground: oklch(0.96 0.005 260);
   --popover: oklch(0.18 0.02 265);
   --popover-foreground: oklch(0.96 0.005 260);
+
   --primary: oklch(0.7 0.19 285);
   --primary-foreground: oklch(0.99 0 0);
+
   --secondary: oklch(0.22 0.02 265);
   --secondary-foreground: oklch(0.96 0.005 260);
   --muted: oklch(0.2 0.018 265);
   --muted-foreground: oklch(0.65 0.02 260);
   --accent: oklch(0.25 0.04 285);
   --accent-foreground: oklch(0.96 0.005 260);
+
   --destructive: oklch(0.65 0.22 18);
   --destructive-foreground: oklch(0.99 0 0);
   --success: oklch(0.7 0.16 155);
@@ -118,14 +173,17 @@
   --warning-foreground: oklch(0.2 0.04 75);
   --info: oklch(0.7 0.16 230);
   --info-foreground: oklch(0.13 0.02 230);
+
   --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 12%);
   --ring: oklch(0.7 0.19 285);
+
   --chart-1: oklch(0.7 0.19 285);
   --chart-2: oklch(0.7 0.16 200);
   --chart-3: oklch(0.72 0.17 155);
   --chart-4: oklch(0.78 0.17 75);
   --chart-5: oklch(0.68 0.22 330);
+
   --sidebar: oklch(0.15 0.018 265);
   --sidebar-foreground: oklch(0.96 0.005 260);
   --sidebar-primary: oklch(0.7 0.19 285);
@@ -134,6 +192,26 @@
   --sidebar-accent-foreground: oklch(0.96 0.005 260);
   --sidebar-border: oklch(1 0 0 / 6%);
   --sidebar-ring: oklch(0.7 0.19 285);
+
+  --bg-tint-1: oklch(0.7 0.19 285 / 0.1);
+  --bg-tint-2: oklch(0.7 0.16 200 / 0.07);
+  --bg-tint-3: oklch(0.68 0.22 330 / 0.05);
+
+  --grid-line: oklch(1 0 0 / 0.04);
+
+  --scrollbar-thumb: oklch(1 0 0 / 0.1);
+  --scrollbar-thumb-hover: oklch(1 0 0 / 0.18);
+
+  --shimmer-base: oklch(1 0 0 / 0.02);
+  --shimmer-peak: oklch(1 0 0 / 0.08);
+
+  --glass-inset-1: oklch(1 0 0 / 0.04);
+  --glass-inset-2: oklch(1 0 0 / 0.02);
+  --glass-shadow: oklch(0 0 0 / 0.5);
+  --glass-shadow-strong: oklch(0 0 0 / 0.6);
+
+  --glow-violet: oklch(0.7 0.19 285 / 0.5);
+  --glow-cyan: oklch(0.7 0.16 200 / 0.4);
 }
 
 @layer base {
@@ -145,42 +223,57 @@
     font-feature-settings: "cv11", "ss01", "ss03";
     -webkit-font-smoothing: antialiased;
   }
+  /* Smooth ambient gradient background — different per theme */
   body {
     background-image:
-      radial-gradient(ellipse 80% 60% at 20% 0%, oklch(0.7 0.19 285 / 0.08), transparent 60%),
-      radial-gradient(ellipse 70% 50% at 80% 10%, oklch(0.7 0.16 200 / 0.06), transparent 60%);
+      radial-gradient(ellipse 80% 60% at 20% 0%, var(--bg-tint-1), transparent 60%),
+      radial-gradient(ellipse 70% 50% at 80% 10%, var(--bg-tint-2), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 50% 100%, var(--bg-tint-3), transparent 65%);
     background-attachment: fixed;
+  }
+  /* Smooth theme transition */
+  html {
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  body, body * {
+    transition: background-color 0.25s ease, border-color 0.25s ease, color 0.2s ease;
   }
 }
 
-/* Glass panel utility */
+/* Glass panel utility — adapts to theme via CSS variables */
 @layer components {
   .glass-panel {
     @apply bg-card/60 backdrop-blur-xl border border-border/60;
     box-shadow:
-      0 1px 0 0 oklch(1 0 0 / 0.04) inset,
-      0 0 0 1px oklch(1 0 0 / 0.02) inset,
-      0 8px 32px -12px oklch(0 0 0 / 0.5);
+      0 1px 0 0 var(--glass-inset-1) inset,
+      0 0 0 1px var(--glass-inset-2) inset,
+      0 8px 32px -12px var(--glass-shadow);
   }
   .glass-panel-strong {
     @apply bg-card/80 backdrop-blur-2xl border border-border/80;
     box-shadow:
-      0 1px 0 0 oklch(1 0 0 / 0.06) inset,
-      0 0 0 1px oklch(1 0 0 / 0.03) inset,
-      0 12px 40px -12px oklch(0 0 0 / 0.6);
+      0 1px 0 0 var(--glass-inset-1) inset,
+      0 0 0 1px var(--glass-inset-2) inset,
+      0 12px 40px -12px var(--glass-shadow-strong);
   }
   .gradient-text {
     @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, oklch(0.58 0.2 285), oklch(0.62 0.16 220));
+  }
+  .dark .gradient-text {
     background-image: linear-gradient(135deg, oklch(0.85 0.18 285), oklch(0.8 0.16 200));
   }
   .gradient-text-cyan {
     @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, oklch(0.62 0.16 220), oklch(0.65 0.16 160));
+  }
+  .dark .gradient-text-cyan {
     background-image: linear-gradient(135deg, oklch(0.85 0.18 200), oklch(0.8 0.16 155));
   }
   .grid-bg {
     background-image:
-      linear-gradient(to right, oklch(1 0 0 / 0.04) 1px, transparent 1px),
-      linear-gradient(to bottom, oklch(1 0 0 / 0.04) 1px, transparent 1px);
+      linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
     background-size: 56px 56px;
   }
   .grid-bg-fade {
@@ -188,10 +281,10 @@
     mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 30%, transparent 75%);
   }
   .glow-violet {
-    box-shadow: 0 0 40px -10px oklch(0.7 0.19 285 / 0.5);
+    box-shadow: 0 0 40px -10px var(--glow-violet);
   }
   .glow-cyan {
-    box-shadow: 0 0 40px -10px oklch(0.7 0.16 200 / 0.4);
+    box-shadow: 0 0 40px -10px var(--glow-cyan);
   }
   .text-balance {
     text-wrap: balance;
@@ -207,13 +300,13 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: oklch(1 0 0 / 0.1);
+  background: var(--scrollbar-thumb);
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(1 0 0 / 0.18);
+  background: var(--scrollbar-thumb-hover);
   background-clip: padding-box;
   border: 2px solid transparent;
 }
@@ -224,9 +317,12 @@
   50% { background-position: 100% 50%; }
 }
 .animated-border {
-  background: linear-gradient(110deg, oklch(0.7 0.19 285), oklch(0.7 0.16 200), oklch(0.7 0.19 285));
+  background: linear-gradient(110deg, oklch(0.55 0.2 285), oklch(0.62 0.16 220), oklch(0.55 0.2 285));
   background-size: 200% 100%;
   animation: border-flow 6s ease infinite;
+}
+.dark .animated-border {
+  background: linear-gradient(110deg, oklch(0.7 0.19 285), oklch(0.7 0.16 200), oklch(0.7 0.19 285));
 }
 
 /* Pulse for status dots */
@@ -246,12 +342,20 @@
 .shimmer {
   background: linear-gradient(
     90deg,
-    oklch(1 0 0 / 0.02) 0%,
-    oklch(1 0 0 / 0.08) 50%,
-    oklch(1 0 0 / 0.02) 100%
+    var(--shimmer-base) 0%,
+    var(--shimmer-peak) 50%,
+    var(--shimmer-base) 100%
   );
   background-size: 1000px 100%;
   animation: shimmer 2s infinite linear;
+}
+
+/* Theme toggle icon — smooth spin */
+.theme-toggle-icon {
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.theme-toggle-icon.spinning {
+  transform: rotate(180deg);
 }
 
 /* prefers-reduced-motion */

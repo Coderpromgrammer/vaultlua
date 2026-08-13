@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VaultLogo } from "./logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -248,6 +249,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </button>
 
           <div className="ml-auto flex items-center gap-1.5">
+            {/* Theme toggle */}
+            <ThemeToggle />
+
             {/* Notifications */}
             <DropdownMenu open={notifOpen} onOpenChange={setNotifOpen}>
               <DropdownMenuTrigger asChild>

@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 import { motion } from "framer-motion";
 import { ArrowRight, Mail, Lock, User, Github, Chrome } from "lucide-react";
 import { VaultLogo } from "@/components/shared/logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,12 +64,15 @@ export function AuthView({ mode }: { mode: "signin" | "signup" | "reset" }) {
     <div className="min-h-screen grid lg:grid-cols-2 bg-background">
       {/* Left side — form */}
       <div className="flex flex-col p-6 lg:p-10">
-        <button
-          onClick={() => navigate("/landing")}
-          className="flex items-center gap-2 w-fit"
-        >
-          <VaultLogo size={28} withText />
-        </button>
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => navigate("/landing")}
+            className="flex items-center gap-2 w-fit"
+          >
+            <VaultLogo size={28} withText />
+          </button>
+          <ThemeToggle />
+        </div>
 
         <div className="flex-1 grid place-items-center py-10">
           <motion.div

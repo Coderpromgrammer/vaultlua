@@ -1,9 +1,10 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useSession } from "next-auth/react";
-import { User, Shield, Bell, Palette, CreditCard, Key, Save, Copy } from "lucide-react";
+import { useTheme } from "next-themes";
+import { User, Shield, Bell, Palette, CreditCard, Key, Save, Copy, Sun, Moon, Monitor, Check } from "lucide-react";
 import { PageHeader } from "@/components/shared/primitives";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -172,44 +173,7 @@ export function SettingsView() {
         </TabsContent>
 
         <TabsContent value="appearance">
-          <Card className="glass-panel p-6 max-w-2xl space-y-4">
-            <h3 className="font-semibold flex items-center gap-2">
-              <Palette className="w-4 h-4 text-violet-300" />
-              Appearance
-            </h3>
-            <div className="space-y-2">
-              <Label>Theme</Label>
-              <div className="grid grid-cols-3 gap-2">
-                <button className="p-3 rounded-lg border border-violet-500/40 bg-violet-500/10 text-left">
-                  <div className="text-xs font-medium mb-0.5">Dark (default)</div>
-                  <div className="text-[10px] text-muted-foreground">VaultLua signature</div>
-                </button>
-                <button className="p-3 rounded-lg border border-border/60 bg-muted/30 text-left opacity-50" disabled>
-                  <div className="text-xs font-medium mb-0.5">Light</div>
-                  <div className="text-[10px] text-muted-foreground">Coming soon</div>
-                </button>
-                <button className="p-3 rounded-lg border border-border/60 bg-muted/30 text-left opacity-50" disabled>
-                  <div className="text-xs font-medium mb-0.5">System</div>
-                  <div className="text-[10px] text-muted-foreground">Match OS</div>
-                </button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Accent color</Label>
-              <div className="flex gap-2">
-                {["oklch(0.7 0.19 285)", "oklch(0.7 0.16 200)", "oklch(0.7 0.16 155)", "oklch(0.78 0.17 75)", "oklch(0.65 0.22 330)"].map((c, i) => (
-                  <button
-                    key={c}
-                    className={cn(
-                      "w-8 h-8 rounded-full ring-2 ring-offset-2 ring-offset-background",
-                      i === 0 ? "ring-foreground" : "ring-transparent"
-                    )}
-                    style={{ background: c }}
-                  />
-                ))}
-              </div>
-            </div>
-          </Card>
+          <AppearanceTab />
         </TabsContent>
 
         <TabsContent value="billing">
@@ -241,5 +205,140 @@ export function SettingsView() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function AppearanceTab() {
+  const { theme, setTheme, resolvedTheme } = useTheme();
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+
+  const current = (mounted ? theme : "system") ?? "system";
+
+  const themes = [
+    {
+      key: "light",
+      label: "Light",
+      description: "Soft lavender-tinted off-white",
+      icon: Sun,
+      preview: "bg-gradient-to-br from-violet-50 via-white to-cyan-50",
+    },
+    {
+      key: "dark",
+      label: "Dark",
+      description: "Deep space navy · signature",
+      icon: Moon,
+      preview: "bg-gradient-to-br from-[oklch(0.16_0.018_265)] via-[oklch(0.13_0.015_265)] to-[oklch(0.16_0.018_200)]",
+    },
+    {
+      key: "system",
+      label: "System",
+      description: "Match your OS preference",
+      icon: Monitor,
+      preview: "bg-gradient-to-br from-violet-50 via-white to-[oklch(0.16_0.018_265)]",
+    },
+  ];
+
+  return (
+    <Card className="glass-panel p-6 max-w-2xl space-y-5">
+      <h3 className="font-semibold flex items-center gap-2">
+        <Palette className="w-4 h-4 text-violet-300" />
+        Appearance
+      </h3>
+
+      <div className="space-y-2.5">
+        <Label>Theme</Label>
+        <div className="grid grid-cols-3 gap-3">
+          {themes.map((t) => {
+            const Icon = t.icon;
+            const isActive = current === t.key;
+            return (
+              <button
+                key={t.key}
+                onClick={() => setTheme(t.key)}
+                className={cn(
+                  "group relative p-3 rounded-xl border text-left transition-all overflow-hidden",
+                  isActive
+                    ? "border-violet-500/60 bg-violet-500/10 ring-2 ring-violet-500/30"
+                    : "border-border/60 bg-muted/20 hover:bg-muted/40 hover:border-border"
+                )}
+              >
+                {/* Preview swatch */}
+                <div className={cn("w-full h-14 rounded-lg mb-2.5 ring-1 ring-black/10", t.preview)} />
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <Icon className={cn("w-3.5 h-3.5", isActive ? "text-violet-300" : "text-muted-foreground")} />
+                  <span className="text-xs font-medium">{t.label}</span>
+                  {isActive && (
+                    <Check className="w-3 h-3 text-violet-300 ml-auto" />
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-tight">{t.description}</p>
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          {current === "system"
+            ? `Currently rendering as ${resolvedTheme ?? "system"} based on your OS preference.`
+            : `Theme is set to ${current}. The change is saved to your browser instantly.`}
+        </p>
+      </div>
+
+      <Separator />
+
+      <div className="space-y-2.5">
+        <Label>Accent color</Label>
+        <div className="flex gap-2.5">
+          {[
+            { c: "oklch(0.55 0.2 285)", name: "Violet", active: true },
+            { c: "oklch(0.6 0.16 220)", name: "Sky" },
+            { c: "oklch(0.62 0.16 160)", name: "Teal" },
+            { c: "oklch(0.7 0.17 65)", name: "Amber" },
+            { c: "oklch(0.6 0.21 350)", name: "Rose" },
+          ].map((c) => (
+            <button
+              key={c.c}
+              title={c.name}
+              onClick={() => toast.info(`${c.name} accent — coming soon`, {
+                description: "Accent color switching is on the roadmap.",
+              })}
+              className={cn(
+                "w-9 h-9 rounded-full ring-2 ring-offset-2 ring-offset-background transition-transform hover:scale-110",
+                c.active ? "ring-foreground" : "ring-transparent"
+              )}
+              style={{ background: c.c }}
+            />
+          ))}
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Accent customization is coming soon. The default violet→cyan gradient is used throughout.
+        </p>
+      </div>
+
+      <Separator />
+
+      <div className="space-y-2.5">
+        <Label>Preview</Label>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="p-4 rounded-lg border border-border/60 bg-card/60">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Card</div>
+            <div className="h-2 w-20 bg-foreground/20 rounded mb-2" />
+            <div className="h-2 w-32 bg-foreground/10 rounded" />
+            <div className="mt-3 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30">
+              <span className="w-1 h-1 rounded-full bg-emerald-500" />
+              Active
+            </div>
+          </div>
+          <div className="p-4 rounded-lg border border-border/60 bg-card/60">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Gradient</div>
+            <div className="h-10 rounded-md bg-gradient-to-r from-violet-500 to-cyan-500" />
+            <div className="mt-2 text-xs font-medium gradient-text">gradient-text sample</div>
+          </div>
+        </div>
+      </div>
+    </Card>
   );
 }

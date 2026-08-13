@@ -9,6 +9,7 @@ import {
   PartyPopper, Copy, Clock, ShieldCheck, ExternalLink,
 } from "lucide-react";
 import { VaultLogo } from "@/components/shared/logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,12 +40,15 @@ function AdsIndex() {
         animate={{ opacity: 1, y: 0 }}
         className="relative w-full max-w-md"
       >
-        <button
-          onClick={() => navigate("/landing")}
-          className="flex items-center gap-2 mx-auto mb-8"
-        >
-          <VaultLogo size={32} withText />
-        </button>
+        <div className="flex items-center justify-between mb-8">
+          <button
+            onClick={() => navigate("/landing")}
+            className="flex items-center gap-2"
+          >
+            <VaultLogo size={32} withText />
+          </button>
+          <ThemeToggle />
+        </div>
 
         <Card className="glass-panel-strong p-8">
           <div className="text-center mb-6">
@@ -417,12 +421,15 @@ function RewardFlowWrapper({ children }: { children: React.ReactNode }) {
       <div className="absolute inset-0 grid-bg grid-bg-fade pointer-events-none" />
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-br from-violet-600/15 via-fuchsia-600/5 to-cyan-600/15 rounded-full blur-3xl pointer-events-none" />
       <div className="relative w-full max-w-lg">
-        <button
-          onClick={() => navigate("/ads")}
-          className="flex items-center gap-2 mx-auto mb-6"
-        >
-          <VaultLogo size={28} withText />
-        </button>
+        <div className="flex items-center justify-between mb-6">
+          <button
+            onClick={() => navigate("/ads")}
+            className="flex items-center gap-2"
+          >
+            <VaultLogo size={28} withText />
+          </button>
+          <ThemeToggle />
+        </div>
         <AnimatePresence mode="wait">
           <motion.div
             initial={{ opacity: 0, y: 8 }}

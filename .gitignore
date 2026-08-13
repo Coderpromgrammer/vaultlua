@@ -30,25 +30,52 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files (never commit real secrets — see .env.example)
+.env
+.env.local
+.env.production
+.env*.local
 
 # vercel
 .vercel
 
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-local-*
-.claude
-.z-ai-config
+
+# logs
 *.log
 dev.log
-dev.out.log
-test
-prompt
-
 server.log
-# Skills directory
+dev.out.log
+
+# IDE / editor
+.idea
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# OS
+Thumbs.db
+
+# Local-only directories
+.z-ai-config
+.claude
+.zscripts/
+local-*
+prompt
+test
+
+# Local SQLite database (re-created on `bun run db:push`)
+db/*.db
+db/*.db-journal
+
+# Downloaded screenshots / artifacts
+download/
+
+# Skills directory (internal)
 /skills/
+
+# Build artifacts
+mini-services/*/node_modules
+mini-services/*/.next
