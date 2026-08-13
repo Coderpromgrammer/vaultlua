@@ -114,8 +114,13 @@ const PRICING = [
 
 export function LandingView() {
   const { scrollY } = useScroll();
-  const heroY = useTransform(scrollY, [0, 600], [0, 80]);
-  const heroOpacity = useTransform(scrollY, [0, 400], [1, 0]);
+  // Subtle parallax only — do NOT fade opacity. Fading the whole hero (which
+  // includes the floating preview card) creates a visual gap where the hero
+  // is invisible but still occupies layout space, hiding the next section
+  // during the scroll transition.
+  const heroY = useTransform(scrollY, [0, 800], [0, 40]);
+  // Gentle fade only on the very tail of the hero, so it doesn't gap.
+  const heroOpacity = useTransform(scrollY, [0, 200, 600], [1, 1, 0.85]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

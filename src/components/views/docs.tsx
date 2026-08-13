@@ -376,14 +376,14 @@ end)`}
                 ["GET", "/sessions?projectId=", "List sessions", "users:read"],
                 ["POST", "/sessions/:id/terminate", "Terminate session", "users:write"],
                 ["GET", "/analytics?projectId=&range=7d", "Analytics", "analytics:read"],
-              ].map((row) => (
-                <div key={row[1]} className="flex items-center gap-2 p-2 rounded-md bg-muted/20 hover:bg-muted/40 transition-colors">
-                  <Badge variant="outline" className={cn("text-[10px] font-mono w-12 justify-center", row[0] === "GET" ? "text-emerald-300 border-emerald-500/30" : row[0] === "POST" ? "text-amber-300 border-amber-500/30" : "text-rose-300 border-rose-500/30")}>
+              ].map((row, i) => (
+                <div key={`${row[0]}-${row[1]}-${i}`} className="flex items-center gap-2 p-2 rounded-md bg-muted/20 hover:bg-muted/40 transition-colors">
+                  <Badge variant="outline" className={cn("text-[10px] font-mono w-12 justify-center", row[0] === "GET" ? "text-emerald-600 dark:text-emerald-300 border-emerald-500/30" : row[0] === "POST" ? "text-amber-600 dark:text-amber-300 border-amber-500/30" : "text-rose-600 dark:text-rose-300 border-rose-500/30")}>
                     {row[0]}
                   </Badge>
                   <code className="text-xs flex-1 truncate">{row[1]}</code>
                   <span className="text-xs text-muted-foreground hidden md:inline">{row[2]}</span>
-                  <Badge variant="outline" className="text-[9px] font-mono bg-violet-500/10 text-violet-300 border-violet-500/20">{row[3]}</Badge>
+                  <Badge variant="outline" className="text-[9px] font-mono bg-violet-500/10 text-violet-600 dark:text-violet-300 border-violet-500/20">{row[3]}</Badge>
                 </div>
               ))}
             </div>
