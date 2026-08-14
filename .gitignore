@@ -79,3 +79,6 @@ download/
 # Build artifacts
 mini-services/*/node_modules
 mini-services/*/.next
+
+# Agent scratch directory
+tool-results/
