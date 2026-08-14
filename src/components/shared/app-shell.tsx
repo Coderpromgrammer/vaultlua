@@ -2,14 +2,13 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { UserButton, SignInButton, SignUpButton, SignedIn, SignedOut } from "@clerk/nextjs";
 import { useRouter, navigate } from "@/lib/router";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, FolderKanban, FileCode2, Users, KeyRound,
   Radio, Gift, BarChart3, Code2, MessageSquare, BookOpen,
   Settings, Shield, Bell, Search, Menu, X, Command as CmdIcon,
-  ChevronRight, Plus, Sparkles, type LucideIcon,
+  LogOut, ChevronRight, Plus, Sparkles, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VaultLogo } from "./logo";
@@ -17,8 +16,10 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import {
   Command, CommandInput, CommandList, CommandEmpty, CommandGroup,
@@ -58,7 +59,7 @@ const NAV: NavItem[] = [
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
@@ -332,38 +333,64 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Account menu — Clerk UserButton when signed in, sign-in/up buttons when signed out */}
-            <SignedIn>
-              <div className="flex items-center gap-2">
-                <div className="hidden md:flex flex-col items-end leading-none">
-                  <span className="text-xs font-medium">
-                    {profile?.displayName ?? profile?.username ?? user?.email?.split("@")[0] ?? "Account"}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground capitalize">
-                    {role}
-                  </span>
-                </div>
-                <UserButton
-                  appearance={{
-                    elements: {
-                      avatarBox: "w-8 h-8",
-                    },
+            {/* Account menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="gap-2 h-9 px-1.5">
+                  <Avatar className="w-7 h-7">
+                    <AvatarFallback className="bg-gradient-to-br from-violet-500 to-cyan-500 text-white text-xs font-medium">
+                      {(profile?.username ?? user?.email ?? "VL").slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="hidden md:flex flex-col items-start leading-none">
+                    <span className="text-xs font-medium">
+                      {profile?.displayName ?? profile?.username ?? user?.email?.split("@")[0]}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground capitalize">
+                      {role}
+                    </span>
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">
+                      {profile?.displayName ?? profile?.username ?? user?.email?.split("@")[0]}
+                    </p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {user?.email}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => router.push("/settings")}>
+                  <Settings className="w-3.5 h-3.5 mr-2" />
+                  Settings
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push("/api-keys")}>
+                  <Code2 className="w-3.5 h-3.5 mr-2" />
+                  API keys
+                </DropdownMenuItem>
+                {isAdmin && (
+                  <DropdownMenuItem onClick={() => router.push("/admin")}>
+                    <Shield className="w-3.5 h-3.5 mr-2" />
+                    Admin panel
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-rose-300 focus:text-rose-200"
+                  onClick={() => {
+                    signOut();
+                    navigate("/landing");
                   }}
-                />
-              </div>
-            </SignedIn>
-            <SignedOut>
-              <SignInButton mode="modal">
-                <Button variant="ghost" size="sm" className="text-xs">
-                  Sign in
-                </Button>
-              </SignInButton>
-              <SignUpButton mode="modal">
-                <Button size="sm" className="text-xs bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-500 hover:to-cyan-500 border-0">
-                  Get started
-                </Button>
-              </SignUpButton>
-            </SignedOut>
+                >
+                  <LogOut className="w-3.5 h-3.5 mr-2" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 

@@ -1,92 +1,93 @@
 "use client";
 
 import {
-  useUser as useClerkUser,
-  useClerk,
-} from "@clerk/nextjs";
-import type { ReactNode } from "react";
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
+import { toast } from "sonner";
 
-/**
- * Clerk-backed auth context adapter.
- *
- * Existing VaultLua components consume `useAuth()` for `{ user, loading, signOut }`.
- * We expose the same shape backed by Clerk so they work without rewrites.
- * Sign-in / sign-up are handled by Clerk's <SignIn /> / <SignUp /> components
- * on the /auth routes — the legacy `signIn(email, password)` /
- * `signUp(email, password, username)` methods are no-ops that redirect to the
- * Clerk-hosted auth pages.
- */
-
-interface AuthAdapterUser {
+interface AuthUser {
   id: string;
-  email: string | null;
-  username: string | null;
-  imageUrl?: string | null;
+  email: string;
+  username: string;
+  displayName?: string | null;
+  role: string;
 }
 
-interface AuthContextValue {
-  user: AuthAdapterUser | null;
+interface AuthContextType {
+  user: AuthUser | null;
   loading: boolean;
-  signIn: (email?: string, password?: string) => Promise<{ error: string | null }>;
-  signUp: (
-    email?: string,
-    password?: string,
-    username?: string
-  ) => Promise<{ error: string | null; needsVerification: boolean }>;
+  signIn: (username: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
-  resetPassword: (email?: string) => Promise<{ error: string | null }>;
 }
 
-// Use a simple context so consumers can call useAuth() without a provider
-// hierarchy change — ClerkProvider is set up in providers.tsx and gives us
-// access to useUser / useClerk anywhere inside the tree.
-import { createContext, useContext } from "react";
-
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { user, isLoaded } = useClerkUser();
-  const { signOut: clerkSignOut, redirectToSignIn } = useClerk();
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const adapterUser: AuthAdapterUser | null = user
-    ? {
-        id: user.id,
-        email: user.primaryEmailAddress?.emailAddress ?? null,
-        username: user.username ?? (user.firstName ?? null),
-        imageUrl: user.imageUrl,
-      }
-    : null;
+  // Check current session on mount
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (cancelled) return;
+        if (j?.success) {
+          setUser({
+            id: j.data.id,
+            email: j.data.email,
+            username: j.data.username,
+            displayName: j.data.displayName,
+            role: j.data.role,
+          });
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const signIn = async () => {
-    redirectToSignIn();
+  const signIn = async (username: string, password: string) => {
+    const r = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    const j = await r.json().catch(() => null);
+    if (!r.ok || !j?.success) {
+      return { error: j?.error?.message ?? "Login failed" };
+    }
+    // Fetch the profile
+    const me = await fetch("/api/me").then((r) => r.json());
+    if (me?.success) {
+      setUser({
+        id: me.data.id,
+        email: me.data.email,
+        username: me.data.username,
+        displayName: me.data.displayName,
+        role: me.data.role,
+      });
+    }
     return { error: null };
-  };
-
-  const signUp = async () => {
-    redirectToSignIn(); // Clerk's combined flow handles sign-up too
-    return { error: null, needsVerification: false };
   };
 
   const signOut = async () => {
-    await clerkSignOut();
-  };
-
-  const resetPassword = async () => {
-    redirectToSignIn();
-    return { error: null };
+    await fetch("/api/auth/logout", { method: "POST" });
+    setUser(null);
+    toast.success("Signed out");
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user: adapterUser,
-        loading: !isLoaded,
-        signIn,
-        signUp,
-        signOut,
-        resetPassword,
-      }}
-    >
+    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

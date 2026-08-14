@@ -1,4 +1,5 @@
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { cookies } from "next/headers";
+import { createHmac, timingSafeEqual } from "crypto";
 import { db } from "./db";
 import type { Role } from "./authz";
 
@@ -9,72 +10,127 @@ export type CurrentUser = {
   displayName?: string | null;
   avatarUrl?: string | null;
   role: Role;
-  clerkId: string;
 };
 
 /**
- * Returns the current authenticated user via Clerk. If the Clerk user exists
- * but has no local Profile record yet, one is created lazily with role
- * "creator". The Clerk user ID is stored on the Profile as `clerkId` (added
- * via nullable column on the schema via Prisma — falls back to a metadata
- * lookup when not present).
+ * Simple single-account auth.
+ *
+ * Credentials are read from ADMIN_USERNAME / ADMIN_PASSWORD env vars
+ * (defaults: admin / vaultlua2024). On first successful login, a Profile row
+ * is created with role "owner" so existing API routes (which expect
+ * user.id to be a Profile.id) work unchanged.
+ *
+ * Sessions are signed JWTs stored in an httpOnly cookie named "vlx_session".
+ * No external auth provider — just enough to gate the dashboard.
  */
-export async function getCurrentUser(): Promise<CurrentUser | null> {
-  const session = await auth();
-  if (!session?.userId) return null;
 
-  const clerkUser = await currentUser();
-  if (!clerkUser) return null;
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "admin";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "vaultlua2024";
+const SIGNING_KEY = process.env.ENCRYPTION_KEY || "vaultlua-dev-encryption-key-32b";
+const COOKIE_NAME = "vlx_session";
+const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 
-  const email =
-    clerkUser.emailAddresses?.[0]?.emailAddress ??
-    clerkUser.primaryEmailAddress?.emailAddress ??
-    null;
-  if (!email) return null;
+function base64UrlEncode(s: string): string {
+  return Buffer.from(s).toString("base64url");
+}
+function base64UrlDecode(s: string): string {
+  return Buffer.from(s, "base64url").toString();
+}
 
-  const username =
-    (clerkUser.username as string | undefined) ??
-    (clerkUser.publicMetadata?.username as string | undefined) ??
-    (clerkUser.firstName ?? "").toLowerCase() ??
-    email.split("@")[0];
+function sign(payload: string): string {
+  return createHmac("sha256", SIGNING_KEY).update(payload).digest("base64url");
+}
 
-  // Find existing profile by Clerk ID first, then by email (legacy migration)
+function makeJwt(payload: object): string {
+  const body = base64UrlEncode(JSON.stringify(payload));
+  return `${body}.${sign(body)}`;
+}
+
+function verifyJwt(token: string): Record<string, unknown> | null {
+  const [body, sig] = token.split(".");
+  if (!body || !sig) return null;
+  const expected = sign(body);
+  // constant-time compare
+  const a = Buffer.from(sig);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return null;
+  if (!timingSafeEqual(a, b)) return null;
+  try {
+    const parsed = JSON.parse(base64UrlDecode(body));
+    if (typeof parsed !== "object" || parsed === null) return null;
+    return parsed as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function safeEqual(a: string, b: string): boolean {
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ba.length !== bb.length) return false;
+  return timingSafeEqual(ba, bb);
+}
+
+/**
+ * Verify username/password and return a JWT to store in a cookie.
+ * Returns null on failure.
+ */
+export async function loginWithCredentials(
+  username: string,
+  password: string
+): Promise<string | null> {
+  if (!safeEqual(username.trim().toLowerCase(), ADMIN_USERNAME.toLowerCase())) {
+    return null;
+  }
+  if (!safeEqual(password, ADMIN_PASSWORD)) {
+    return null;
+  }
+  // Ensure a Profile exists for the admin user
   let profile = await db.profile.findFirst({
-    where: {
-      OR: [{ id: session.userId }, { email }],
-    },
+    where: { username: ADMIN_USERNAME },
   });
-
   if (!profile) {
-    // Ensure username uniqueness
-    let uniqueUsername = username;
-    let suffix = 1;
-    while (await db.profile.findUnique({ where: { username: uniqueUsername } })) {
-      uniqueUsername = `${username}_${suffix++}`;
-    }
-
     profile = await db.profile.create({
       data: {
-        // Use Clerk userId as the Profile id so API routes can pass it directly
-        // to where: { ownerId: user.id } without an extra lookup.
-        id: session.userId,
-        email,
-        username: uniqueUsername,
-        displayName: clerkUser.username ?? clerkUser.firstName ?? null,
-        avatarUrl: clerkUser.imageUrl ?? null,
-        role: "creator",
+        email: `${ADMIN_USERNAME}@vaultlua.local`,
+        username: ADMIN_USERNAME,
+        displayName: "Administrator",
+        role: "owner",
       },
     });
-  } else if (profile.email !== email || profile.avatarUrl !== clerkUser.imageUrl) {
-    // Keep email and avatar in sync with Clerk
+  } else if (profile.role !== "owner") {
     profile = await db.profile.update({
       where: { id: profile.id },
-      data: {
-        email,
-        avatarUrl: clerkUser.imageUrl ?? null,
-      },
+      data: { role: "owner" },
     });
   }
+
+  return makeJwt({
+    sub: profile.id,
+    u: ADMIN_USERNAME,
+    exp: Date.now() + SESSION_TTL_MS,
+  });
+}
+
+/**
+ * Returns the current authenticated user by reading the session cookie.
+ */
+export async function getCurrentUser(): Promise<CurrentUser | null> {
+  const store = await cookies();
+  const token = store.get(COOKIE_NAME)?.value;
+  if (!token) return null;
+
+  const payload = verifyJwt(token);
+  if (!payload) return null;
+
+  const exp = payload.exp;
+  if (typeof exp !== "number" || exp < Date.now()) return null;
+
+  const profileId = payload.sub;
+  if (typeof profileId !== "string") return null;
+
+  const profile = await db.profile.findUnique({ where: { id: profileId } });
+  if (!profile) return null;
 
   // Touch lastSeenAt
   await db.profile
@@ -91,7 +147,6 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     displayName: profile.displayName,
     avatarUrl: profile.avatarUrl,
     role: profile.role as Role,
-    clerkId: session.userId,
   };
 }
 
@@ -100,3 +155,6 @@ export async function getCurrentProfile() {
   if (!user) return null;
   return db.profile.findUnique({ where: { id: user.id } });
 }
+
+export const SESSION_COOKIE_NAME = COOKIE_NAME;
+export const SESSION_COOKIE_TTL = SESSION_TTL_MS;
