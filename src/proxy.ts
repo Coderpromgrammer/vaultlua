@@ -1,5 +1,4 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
-import { NextResponse, type NextRequest } from "next/server";
 
 /**
  * Clerk proxy (Next.js 16+ successor to middleware.ts).
@@ -10,60 +9,18 @@ import { NextResponse, type NextRequest } from "next/server";
  * every protected API route calls getCurrentUser() and returns 401 if not
  * signed in.
  *
- * IMPORTANT — gateway hostname fix:
- * The space-z.ai gateway forwards requests to Function Compute with the
- * internal fcapp.run hostname in the `Host` header. Without rewriting, Clerk
- * builds its handshake redirect URL from that internal hostname, which means
- * cookies get set on `fcapp.run` instead of on our public domain — causing
- * the redirect loop to
- * `ytvafc-d-deploy-htkqrzcljy.cn-hongkong-vpc.fcapp.run/?__clerk_handshake=...`.
+ * The proxy mounts Clerk's middleware so:
+ *   - the Clerk session cookie is set on every request
+ *   - `auth()` in server components / API routes can read the session
  *
- * Fix: we run the underlying clerkMiddleware, then post-process its response.
- * If Clerk returned a handshake redirect to the internal fcapp URL, we rewrite
- * the Location header back to the public domain. We also strip Domain=
- * attributes from Set-Cookie headers so cookies are scoped to the public host
- * (host-only), not the internal fcapp.run domain.
+ * NOTE on the handshake redirect issue: the space-z.ai gateway sometimes
+ * forwards the internal fcapp.run hostname in the Host header, causing Clerk
+ * to redirect to that internal URL. If you see this, set NEXT_PUBLIC_APP_URL
+ * to the public domain in your deployment platform's env vars.
+ *
+ * See: https://clerk.com/docs/nextjs/proxying-requests
  */
-
-const PUBLIC_DOMAIN = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "";
-
-const clerk = clerkMiddleware();
-
-export default async function proxy(req: NextRequest) {
-  const res = await clerk(req as never);
-
-  if (!PUBLIC_DOMAIN) return res;
-
-  // Rewrite Location header: replace any internal fcapp.run URL with the public domain
-  const location = res.headers.get("location");
-  if (location && (location.includes("fcapp.run") || location.includes("cn-hongkong"))) {
-    try {
-      const publicUrl = new URL(PUBLIC_DOMAIN);
-      const locUrl = new URL(location);
-      locUrl.protocol = publicUrl.protocol;
-      locUrl.host = publicUrl.host;
-      locUrl.port = "";
-      res.headers.set("location", locUrl.toString());
-    } catch {
-      // ignore parse errors
-    }
-  }
-
-  // Strip Domain= attributes from Set-Cookie headers so cookies are host-only
-  // on the public domain the browser is using, not on the internal fcapp.run
-  const setCookies = res.headers.getSetCookie?.() ?? [];
-  if (setCookies.length > 0) {
-    const rewritten = setCookies.map((c) =>
-      c.replace(/Domain=[^;]+;?\s*/gi, "")
-    );
-    res.headers.delete("set-cookie");
-    for (const c of rewritten) {
-      res.headers.append("set-cookie", c);
-    }
-  }
-
-  return res;
-}
+export default clerkMiddleware();
 
 export const config = {
   matcher: [
