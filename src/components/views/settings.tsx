@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useSyncExternalStore } from "react";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "next-themes";
 import { User, Shield, Bell, Palette, CreditCard, Key, Save, Copy, Sun, Moon, Monitor, Check } from "lucide-react";
 import { PageHeader } from "@/components/shared/primitives";
@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export function SettingsView() {
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const qc = useQueryClient();
   const { data: profile } = useQuery({
     queryKey: ["me"],
@@ -80,9 +80,9 @@ export function SettingsView() {
               </Avatar>
               <div>
                 <h3 className="font-semibold">{displayName || username}</h3>
-                <p className="text-xs text-muted-foreground">{session?.user?.email}</p>
+                <p className="text-xs text-muted-foreground">{user?.email}</p>
                 <Badge variant="outline" className="mt-1 capitalize bg-violet-500/10 text-violet-300 border-violet-500/30">
-                  {(session?.user as any)?.role}
+                  {profile?.role ?? "creator"}
                 </Badge>
               </div>
             </div>

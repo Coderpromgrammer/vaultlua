@@ -1,10 +1,10 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "./auth";
+import { createClient } from "@supabase/supabase-js";
+import { headers } from "next/headers";
 import { db } from "./db";
-import { getClientIp as getClientIpImpl, type Role } from "./authz";
+import type { Role } from "./authz";
 
-// Re-export so existing imports from "@/lib/session" keep working
-export const getClientIp = getClientIpImpl;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
 
 export type CurrentUser = {
   id: string;
@@ -15,16 +15,61 @@ export type CurrentUser = {
   role: Role;
 };
 
+/**
+ * Returns the current authenticated user by verifying the Supabase access
+ * token from the Authorization header. If the Supabase user exists but has
+ * no local Profile record yet, one is created lazily with role "creator".
+ */
 export async function getCurrentUser(): Promise<CurrentUser | null> {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return null;
+  const h = headers();
+  const authHeader = h.get("authorization") ?? "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+  if (!token) return null;
+
+  // Verify the token with Supabase
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser(token);
+
+  if (error || !user || !user.email) return null;
+
+  // Find or create the local profile
+  let profile = await db.profile.findFirst({
+    where: { email: user.email },
+  });
+
+  if (!profile) {
+    const username =
+      (user.user_metadata?.username as string) ??
+      user.email.split("@")[0];
+
+    // Ensure username uniqueness
+    let uniqueUsername = username;
+    let suffix = 1;
+    while (await db.profile.findUnique({ where: { username: uniqueUsername } })) {
+      uniqueUsername = `${username}_${suffix++}`;
+    }
+
+    profile = await db.profile.create({
+      data: {
+        email: user.email,
+        username: uniqueUsername,
+        displayName: user.user_metadata?.username ?? null,
+        role: "creator",
+      },
+    });
+  }
+
   return {
-    id: session.user.id,
-    email: session.user.email,
-    username: session.user.username,
-    displayName: session.user.displayName,
-    avatarUrl: session.user.avatarUrl,
-    role: session.user.role,
+    id: profile.id,
+    email: profile.email,
+    username: profile.username,
+    displayName: profile.displayName,
+    avatarUrl: profile.avatarUrl,
+    role: profile.role as Role,
   };
 }
 

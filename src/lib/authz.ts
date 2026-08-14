@@ -1,8 +1,6 @@
 import { createHash, createHmac, randomBytes, randomUUID } from "crypto";
-import bcrypt from "bcryptjs";
 import { headers } from "next/headers";
 import { db } from "./db";
-import type { Session } from "next-auth";
 
 /**
  * VaultLua authorization layer.
@@ -166,17 +164,6 @@ export function verifyRewardSessionSignature(
   return mismatch === 0;
 }
 
-export async function hashPassword(plain: string): Promise<string> {
-  return bcrypt.hash(plain, 10);
-}
-
-export async function verifyPassword(
-  plain: string,
-  hashed: string
-): Promise<boolean> {
-  return bcrypt.compare(plain, hashed);
-}
-
 export function shortId(prefix = "id"): string {
   return `${prefix}_${randomUUID().slice(0, 12)}`;
 }
@@ -220,31 +207,4 @@ export async function audit(params: {
       scriptId: params.scriptId ?? null,
     },
   });
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// Session typing for NextAuth
-// ────────────────────────────────────────────────────────────────────────────
-
-declare module "next-auth" {
-  interface Session {
-    user: {
-      id: string;
-      email: string;
-      username: string;
-      role: Role;
-      displayName?: string | null;
-      avatarUrl?: string | null;
-    };
-  }
-}
-
-declare module "next-auth/jwt" {
-  interface JWT {
-    uid: string;
-    role: Role;
-    username: string;
-    displayName?: string | null;
-    avatarUrl?: string | null;
-  }
 }

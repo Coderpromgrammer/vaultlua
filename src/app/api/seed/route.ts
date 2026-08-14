@@ -1,24 +1,25 @@
 import { NextRequest } from "next/server";
-import { seedDemoData } from "@/lib/seed";
+import { seedSampleData } from "@/lib/seed";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
-import { hasMinRole } from "@/lib/authz";
 import { ApiError, apiOk } from "@/lib/api";
 
-// Auto-seed on first deployment via this endpoint, or call from layout.
+/**
+ * Seeds sample data for the current authenticated user.
+ * No demo accounts are created — only projects, scripts, keys, users, and
+ * sessions linked to the real user's ID.
+ */
 export async function POST(_req: NextRequest) {
   const user = await getCurrentUser();
-  const profileCount = await db.profile.count();
-  if (profileCount > 0) {
-    if (!user || !hasMinRole(user.role, "admin")) {
-      return ApiError.forbidden("Demo data already seeded. Admin role required to re-seed.");
-    }
-  }
-  await seedDemoData();
-  return apiOk({ seeded: true });
+  if (!user) return ApiError.unauthorized();
+
+  const result = await seedSampleData(user.id);
+  return apiOk(result);
 }
 
 export async function GET() {
-  const profileCount = await db.profile.count();
-  return apiOk({ seeded: profileCount > 0, profiles: profileCount });
+  const user = await getCurrentUser();
+  if (!user) return apiOk({ hasProjects: false });
+  const count = await db.project.count({ where: { ownerId: user.id } });
+  return apiOk({ hasProjects: count > 0, projectCount: count });
 }

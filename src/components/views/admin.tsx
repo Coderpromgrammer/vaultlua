@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Shield, Users, FolderKanban, Radio, Gift, Activity, AlertTriangle,
   Settings as SettingsIcon, Power, Search, ChevronRight,
@@ -20,13 +20,20 @@ import {
   Tabs, TabsList, TabsTrigger, TabsContent,
 } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 import { navigate } from "@/lib/router";
 
 export function AdminView() {
-  const { data: session } = useSession();
-  const role = (session?.user as any)?.role;
+  const { user } = useAuth();
+  const [role, setRole] = useState<string>("creator");
+  useEffect(() => {
+    if (!user) return;
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((j) => setRole(j?.data?.role ?? "creator"))
+      .catch(() => {});
+  }, [user]);
   const isAdmin = role === "admin" || role === "owner";
 
   const { data: stats } = useQuery({

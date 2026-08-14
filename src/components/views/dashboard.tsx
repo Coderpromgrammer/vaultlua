@@ -1,17 +1,19 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/lib/auth-context";
 import {
   FolderKanban, FileCode2, Users, Radio, KeyRound,
-  Gift, Activity, AlertTriangle,
+  Gift, Activity, AlertTriangle, Plus, Sparkles,
   TrendingUp, Clock, ArrowRight, type LucideIcon,
 } from "lucide-react";
-import { StatCard, PageHeader, StatusBadge } from "@/components/shared/primitives";
+import { StatCard, PageHeader, StatusBadge, EmptyState } from "@/components/shared/primitives";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { toast } from "sonner";
 import { navigate } from "@/lib/router";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid,
@@ -35,7 +37,15 @@ interface OverviewData {
 }
 
 export function DashboardView() {
-  const { data: session } = useSession();
+  const { user } = useAuth();
+  const [profileName, setProfileName] = useState<string>("");
+  useEffect(() => {
+    if (!user) return;
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((j) => setProfileName(j?.data?.displayName ?? j?.data?.username ?? user.email?.split("@")[0] ?? "creator"))
+      .catch(() => {});
+  }, [user]);
   const { data, isLoading } = useQuery<OverviewData>({
     queryKey: ["dashboard-overview"],
     queryFn: async () => {
@@ -72,11 +82,95 @@ export function DashboardView() {
   });
 
   const totalProjects = projectsData?.pagination?.total ?? 0;
+  const qc = useQueryClient();
+  const [seeding, setSeeding] = useState(false);
+
+  const loadSampleData = async () => {
+    setSeeding(true);
+    try {
+      const r = await fetch("/api/seed", { method: "POST" });
+      const j = await r.json();
+      if (j?.success && j.data?.seeded) {
+        toast.success("Sample data loaded", {
+          description: `${j.data.projectCount} projects created with scripts, keys, and sessions.`,
+        });
+        qc.invalidateQueries({ queryKey: ["dashboard-projects"] });
+        qc.invalidateQueries({ queryKey: ["dashboard-overview"] });
+      } else if (j?.success && !j.data?.seeded) {
+        toast.info("You already have projects", {
+          description: "Sample data can only be loaded once per account.",
+        });
+      } else {
+        toast.error(j?.error?.message ?? "Failed to load sample data");
+      }
+    } catch {
+      toast.error("Failed to load sample data");
+    } finally {
+      setSeeding(false);
+    }
+  };
+
+  // Show empty state if user has no projects
+  if (!isLoading && totalProjects === 0) {
+    return (
+      <div>
+        <PageHeader
+          title={`Welcome back, ${profileName?.split(" ")[0] || "creator"}`}
+          description="You're all set up. Create your first project or load sample data to explore the platform."
+          actions={
+            <Button
+              size="sm"
+              className="bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-500 hover:to-cyan-500 border-0"
+              onClick={() => navigate("/projects?new=1")}
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
+              New project
+            </Button>
+          }
+        />
+        <Card className="glass-panel">
+          <EmptyState
+            icon={FolderKanban}
+            title="No projects yet"
+            description="Create your first project to start licensing and distributing your scripts, or load sample data to explore the platform with pre-filled demo projects."
+            action={
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  className="bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-500 hover:to-cyan-500 border-0"
+                  onClick={() => navigate("/projects?new=1")}
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1.5" />
+                  Create project
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={seeding}
+                  onClick={loadSampleData}
+                >
+                  {seeding ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-current/30 border-t-current rounded-full animate-spin mr-1.5" />
+                      Loading…
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                      Load sample data
+                    </>
+                  )}
+                </Button>
+              </div>
+            }
+          />
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div>
       <PageHeader
-        title={`Welcome back, ${(session?.user as any)?.displayName?.split(" ")[0] ?? "creator"}`}
+        title={`Welcome back, ${profileName?.split(" ")[0] || "creator"}`}
         description="Here's what's happening across your projects today."
         actions={
           <>

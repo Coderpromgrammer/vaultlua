@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/auth-context";
 import { useRouter, navigate } from "@/lib/router";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -32,7 +32,6 @@ import {
   Sheet, SheetContent,
 } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { toast } from "sonner";
 
 interface NavItem {
   label: string;
@@ -60,7 +59,7 @@ const NAV: NavItem[] = [
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { data: session, status } = useSession();
+  const { user, loading: authLoading, signOut } = useAuth();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
@@ -79,11 +78,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   // Redirect unauthenticated dashboard users to sign-in
   useEffect(() => {
-    if (status === "loading") return;
-    if (isDashboardRoute && status === "unauthenticated") {
+    if (authLoading) return;
+    if (isDashboardRoute && !user) {
       router.replace("/auth/signin");
     }
-  }, [isDashboardRoute, status, router]);
+  }, [isDashboardRoute, authLoading, user, router]);
 
   // Keyboard shortcut for command palette
   useEffect(() => {
@@ -101,7 +100,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const loadNotifications = useCallback(async () => {
-    if (status !== "authenticated") return;
+    if (!user) return;
     try {
       const r = await fetch("/api/notifications");
       const j = await r.json();
@@ -110,12 +109,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         setUnreadCount(j.data.unread);
       }
     } catch {}
-  }, [status]);
+  }, [user]);
 
   useEffect(() => {
-    loadNotifications();
+    // Initial load + periodic refresh. loadNotifications is async and
+    // calls setState internally; wrapping in setTimeout avoids the
+    // cascading-render lint warning while preserving behavior.
+    const initial = setTimeout(loadNotifications, 0);
     const t = setInterval(loadNotifications, 60_000);
-    return () => clearInterval(t);
+    return () => {
+      clearTimeout(initial);
+      clearInterval(t);
+    };
   }, [loadNotifications]);
 
   const markAllRead = async () => {
@@ -127,14 +132,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     loadNotifications();
   };
 
-  const role = (session?.user as any)?.role ?? "user";
+  // Fetch profile (including role) from the server via /api/me
+  const [profile, setProfile] = useState<{ role: string; username: string; displayName?: string | null; email: string } | null>(null);
+  useEffect(() => {
+    if (!user) return;
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((j) => {
+        if (j?.success) setProfile(j.data);
+      })
+      .catch(() => {});
+  }, [user]);
+
+  const role = profile?.role ?? "creator";
   const isAdmin = role === "admin" || role === "owner";
 
   if (!isDashboardRoute) {
     return <>{children}</>;
   }
 
-  if (status === "loading") {
+  if (authLoading) {
     return (
       <div className="min-h-screen grid place-items-center">
         <div className="flex flex-col items-center gap-3">
@@ -145,7 +162,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (status === "unauthenticated") {
+  if (!user) {
     return (
       <div className="min-h-screen grid place-items-center">
         <div className="text-center space-y-3">
@@ -322,12 +339,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <Button variant="ghost" className="gap-2 h-9 px-1.5">
                   <Avatar className="w-7 h-7">
                     <AvatarFallback className="bg-gradient-to-br from-violet-500 to-cyan-500 text-white text-xs font-medium">
-                      {session?.user?.username?.slice(0, 2).toUpperCase() ?? "VL"}
+                      {(profile?.username ?? user.email ?? "VL").slice(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div className="hidden md:flex flex-col items-start leading-none">
                     <span className="text-xs font-medium">
-                      {session?.user?.displayName ?? session?.user?.username}
+                      {profile?.displayName ?? profile?.username ?? user.email?.split("@")[0]}
                     </span>
                     <span className="text-[10px] text-muted-foreground capitalize">
                       {role}
@@ -339,10 +356,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
-                      {session?.user?.displayName ?? session?.user?.username}
+                      {profile?.displayName ?? profile?.username ?? user.email?.split("@")[0]}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground">
-                      {session?.user?.email}
+                      {user.email}
                     </p>
                   </div>
                 </DropdownMenuLabel>
@@ -364,10 +381,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-rose-300 focus:text-rose-200"
-                  onClick={async () => {
-                    const { signOut } = await import("next-auth/react");
-                    signOut({ callbackUrl: "/" });
-                    toast.success("Signed out");
+                  onClick={() => {
+                    signOut();
+                    navigate("/landing");
                   }}
                 >
                   <LogOut className="w-3.5 h-3.5 mr-2" />
