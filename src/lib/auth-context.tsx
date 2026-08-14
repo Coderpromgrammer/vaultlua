@@ -1,107 +1,91 @@
 "use client";
 
 import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
-import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "./supabase-client";
-import { toast } from "sonner";
+  useUser as useClerkUser,
+  useClerk,
+} from "@clerk/nextjs";
+import type { ReactNode } from "react";
 
-interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (
-    email: string,
-    password: string,
-    username: string
-  ) => Promise<{ error: string | null; needsVerification: boolean }>;
-  signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<{ error: string | null }>;
+/**
+ * Clerk-backed auth context adapter.
+ *
+ * Existing VaultLua components consume `useAuth()` for `{ user, loading, signOut }`.
+ * We expose the same shape backed by Clerk so they work without rewrites.
+ * Sign-in / sign-up are handled by Clerk's <SignIn /> / <SignUp /> components
+ * on the /auth routes — the legacy `signIn(email, password)` /
+ * `signUp(email, password, username)` methods are no-ops that redirect to the
+ * Clerk-hosted auth pages.
+ */
+
+interface AuthAdapterUser {
+  id: string;
+  email: string | null;
+  username: string | null;
+  imageUrl?: string | null;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+interface AuthContextValue {
+  user: AuthAdapterUser | null;
+  loading: boolean;
+  signIn: (email?: string, password?: string) => Promise<{ error: string | null }>;
+  signUp: (
+    email?: string,
+    password?: string,
+    username?: string
+  ) => Promise<{ error: string | null; needsVerification: boolean }>;
+  signOut: () => Promise<void>;
+  resetPassword: (email?: string) => Promise<{ error: string | null }>;
+}
+
+// Use a simple context so consumers can call useAuth() without a provider
+// hierarchy change — ClerkProvider is set up in providers.tsx and gives us
+// access to useUser / useClerk anywhere inside the tree.
+import { createContext, useContext } from "react";
+
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, isLoaded } = useClerkUser();
+  const { signOut: clerkSignOut, redirectToSignIn } = useClerk();
 
-  useEffect(() => {
-    let mounted = true;
+  const adapterUser: AuthAdapterUser | null = user
+    ? {
+        id: user.id,
+        email: user.primaryEmailAddress?.emailAddress ?? null,
+        username: user.username ?? (user.firstName ?? null),
+        imageUrl: user.imageUrl,
+      }
+    : null;
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return;
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.toLowerCase().trim(),
-      password,
-    });
-    return { error: error?.message ?? null };
+  const signIn = async () => {
+    redirectToSignIn();
+    return { error: null };
   };
 
-  const signUp = async (email: string, password: string, username: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email: email.toLowerCase().trim(),
-      password,
-      options: {
-        data: { username: username.trim() },
-      },
-    });
-    if (error) return { error: error.message, needsVerification: false };
-
-    // If email confirmation is disabled in Supabase, the user is immediately
-    // signed in and a session is created. If it's enabled, no session yet.
-    if (data.session) {
-      // Profile is created lazily in getCurrentUser() on first API call
-      return { error: null, needsVerification: false };
-    }
-
-    return { error: null, needsVerification: true };
+  const signUp = async () => {
+    redirectToSignIn(); // Clerk's combined flow handles sign-up too
+    return { error: null, needsVerification: false };
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    toast.success("Signed out");
+    await clerkSignOut();
   };
 
-  const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(
-      email.toLowerCase().trim(),
-      {
-        redirectTo: `${window.location.origin}/#/auth/reset`,
-      }
-    );
-    return { error: error?.message ?? null };
+  const resetPassword = async () => {
+    redirectToSignIn();
+    return { error: null };
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, session, loading, signIn, signUp, signOut, resetPassword }}
+      value={{
+        user: adapterUser,
+        loading: !isLoaded,
+        signIn,
+        signUp,
+        signOut,
+        resetPassword,
+      }}
     >
       {children}
     </AuthContext.Provider>

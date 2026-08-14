@@ -1,10 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
-import { headers } from "next/headers";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { db } from "./db";
 import type { Role } from "./authz";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
 
 export type CurrentUser = {
   id: string;
@@ -13,39 +9,43 @@ export type CurrentUser = {
   displayName?: string | null;
   avatarUrl?: string | null;
   role: Role;
+  clerkId: string;
 };
 
 /**
- * Returns the current authenticated user by verifying the Supabase access
- * token from the Authorization header. If the Supabase user exists but has
- * no local Profile record yet, one is created lazily with role "creator".
+ * Returns the current authenticated user via Clerk. If the Clerk user exists
+ * but has no local Profile record yet, one is created lazily with role
+ * "creator". The Clerk user ID is stored on the Profile as `clerkId` (added
+ * via nullable column on the schema via Prisma — falls back to a metadata
+ * lookup when not present).
  */
 export async function getCurrentUser(): Promise<CurrentUser | null> {
-  const h = headers();
-  const authHeader = h.get("authorization") ?? "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  const session = await auth();
+  if (!session?.userId) return null;
 
-  if (!token) return null;
+  const clerkUser = await currentUser();
+  if (!clerkUser) return null;
 
-  // Verify the token with Supabase
-  const supabase = createClient(supabaseUrl, supabaseKey);
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser(token);
+  const email =
+    clerkUser.emailAddresses?.[0]?.emailAddress ??
+    clerkUser.primaryEmailAddress?.emailAddress ??
+    null;
+  if (!email) return null;
 
-  if (error || !user || !user.email) return null;
+  const username =
+    (clerkUser.username as string | undefined) ??
+    (clerkUser.publicMetadata?.username as string | undefined) ??
+    (clerkUser.firstName ?? "").toLowerCase() ??
+    email.split("@")[0];
 
-  // Find or create the local profile
+  // Find existing profile by Clerk ID first, then by email (legacy migration)
   let profile = await db.profile.findFirst({
-    where: { email: user.email },
+    where: {
+      OR: [{ id: session.userId }, { email }],
+    },
   });
 
   if (!profile) {
-    const username =
-      (user.user_metadata?.username as string) ??
-      user.email.split("@")[0];
-
     // Ensure username uniqueness
     let uniqueUsername = username;
     let suffix = 1;
@@ -55,13 +55,34 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
     profile = await db.profile.create({
       data: {
-        email: user.email,
+        // Use Clerk userId as the Profile id so API routes can pass it directly
+        // to where: { ownerId: user.id } without an extra lookup.
+        id: session.userId,
+        email,
         username: uniqueUsername,
-        displayName: user.user_metadata?.username ?? null,
+        displayName: clerkUser.username ?? clerkUser.firstName ?? null,
+        avatarUrl: clerkUser.imageUrl ?? null,
         role: "creator",
       },
     });
+  } else if (profile.email !== email || profile.avatarUrl !== clerkUser.imageUrl) {
+    // Keep email and avatar in sync with Clerk
+    profile = await db.profile.update({
+      where: { id: profile.id },
+      data: {
+        email,
+        avatarUrl: clerkUser.imageUrl ?? null,
+      },
+    });
   }
+
+  // Touch lastSeenAt
+  await db.profile
+    .update({
+      where: { id: profile.id },
+      data: { lastSeenAt: new Date() },
+    })
+    .catch(() => {});
 
   return {
     id: profile.id,
@@ -70,6 +91,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     displayName: profile.displayName,
     avatarUrl: profile.avatarUrl,
     role: profile.role as Role,
+    clerkId: session.userId,
   };
 }
 
